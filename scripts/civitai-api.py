@@ -121,10 +121,10 @@ def download_file_thread(url, file_name, content_type, use_new_folder, model_nam
     elif content_type == "AestheticGradient":
         folder = "extensions/stable-diffusion-webui-aesthetic-gradients/aesthetic_embeddings"
         new_folder = "extensions/stable-diffusion-webui-aesthetic-gradients/aesthetic_embeddings/new"
-    elif content_type == "VAE":
-        folder = "models/VAE"
-        new_folder = "models/VAE/new"
-    if content_type == "TextualInversion" or content_type == "VAE" or content_type == "AestheticGradient":
+    elif content_type == "LORA":
+        folder = "models/Lora"
+        new_folder = "models/Lora/new"
+    if content_type == "TextualInversion" or content_type == "AestheticGradient":
         if use_new_folder:
             model_folder = new_folder
             if not os.path.exists(new_folder):
@@ -167,10 +167,10 @@ def save_text_file(file_name, content_type, use_new_folder, trained_words, model
     elif content_type == "AestheticGradient":
         folder = "extensions/stable-diffusion-webui-aesthetic-gradients/aesthetic_embeddings"
         new_folder = "extensions/stable-diffusion-webui-aesthetic-gradients/aesthetic_embeddings/new"
-    elif content_type == "VAE":
-        folder = "models/VAE"
-        new_folder = "models/VAE/new"
-    if content_type == "TextualInversion" or content_type == "VAE" or content_type == "AestheticGradient":
+    elif content_type == "LORA":
+        folder = "models/Lora"
+        new_folder = "models/Lora/new"
+    if content_type == "TextualInversion" or content_type == "AestheticGradient":
         if use_new_folder:
             model_folder = new_folder
             if not os.path.exists(new_folder):
@@ -337,7 +337,7 @@ def on_ui_tabs():
     with gr.Blocks() as civitai_interface:
         with gr.Row():
             with gr.Column(scale=2):
-                content_type = gr.Radio(label='Content type:', choices=["Checkpoint","Hypernetwork","TextualInversion","AestheticGradient", "VAE"], value="Checkpoint", type="value")
+                content_type = gr.Radio(label='Content type:', choices=["Checkpoint","Hypernetwork","TextualInversion","AestheticGradient", "LORA"], value="Checkpoint", type="value")
             with gr.Column(scale=2):
                 sort_type = gr.Radio(label='Sort List by:', choices=["Newest","Most Downloaded","Highest Rated","Most Liked"], value="Newest", type="value")
             with gr.Column(scale=1):
