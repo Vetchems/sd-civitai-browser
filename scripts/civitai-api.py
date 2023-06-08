@@ -13,7 +13,24 @@ import re
 from requests.exceptions import ConnectionError
 import urllib.request
 import shutil
+import tempfile
 
+LOCK_FILE = 'download_lock'
+
+def create_dummy(file_name):
+    # get directory name from file_name and create LOCK_FILE
+    dir_name = os.path.dirname(file_name)
+    with open(os.path.join(dir_name, LOCK_FILE), 'w') as f:
+        f.write('dummy')
+        
+def remove_dummy(file_name):
+    dir_name = os.path.dirname(file_name)
+    if os.path.exists(os.path.join(dir_name, LOCK_FILE)):
+        os.remove(os.path.join(dir_name, LOCK_FILE))
+        
+def check_dummy(file_name):
+    dir_name = os.path.dirname(file_name)
+    return os.path.exists(os.path.join(dir_name, LOCK_FILE))
 
 def download_file(url, file_name):
     # Maximum number of retries
@@ -21,6 +38,17 @@ def download_file(url, file_name):
 
     # Delay between retries (in seconds)
     retry_delay = 10
+    if os.path.exists(file_name):
+        # skip if exists
+        return
+    
+    if check_dummy(file_name):
+        return
+    
+    create_dummy(file_name)
+    
+    dest = file_name
+    file_name = tempfile.NamedTemporaryFile().name
 
     while True:
         # Check if the file has already been partially downloaded
@@ -35,7 +63,7 @@ def download_file(url, file_name):
             headers = {}
 
         # Split filename from included path
-        tokens = re.split(re.escape('\\'), file_name)
+        tokens = re.split(re.escape('\\'), dest)
         file_name_display = tokens[-1]
 
         # Initialize the progress bar
@@ -71,6 +99,8 @@ def download_file(url, file_name):
 
                     # If there are no more retries, raise the exception
                     if max_retries == 0:
+                        # remove temp file
+                        os.rmdir(file_name)
                         raise e
 
                     # Wait for the specified delay before retrying
@@ -82,9 +112,14 @@ def download_file(url, file_name):
         # Check if the download was successful
         if downloaded_size >= total_size:
             print(f"{file_name_display} successfully downloaded.")
+            # move to dest
+            shutil.move(file_name, dest)
             break
         else:
             print(f"Error: File download failed. Retrying... {file_name_display}")
+    if os.path.exists(file_name):
+        os.remove(file_name)
+    remove_dummy(file_name)
 
 #def download_file(url, file_name):
 #    # Download the file and save it to a local file
