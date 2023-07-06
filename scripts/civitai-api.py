@@ -19,18 +19,21 @@ LOCK_FILE = 'download_lock'
 
 def create_dummy(file_name):
     # get directory name from file_name and create LOCK_FILE
-    dir_name = os.path.dirname(file_name)
-    with open(os.path.join(dir_name, LOCK_FILE), 'w') as f:
+    dummy_path = get_dummy_path(file_name)
+    with open(dummy_path, 'w') as f:
         f.write('dummy')
         
-def remove_dummy(file_name):
+def get_dummy_path(file_name):
     dir_name = os.path.dirname(file_name)
-    if os.path.exists(os.path.join(dir_name, LOCK_FILE)):
-        os.remove(os.path.join(dir_name, LOCK_FILE))
+    return os.path.join(dir_name,file_name + LOCK_FILE)
+        
+def remove_dummy(file_name):
+    dummy_path = get_dummy_path(file_name)
+    if os.path.exists(dummy_path):
+        os.remove(dummy_path)
         
 def check_dummy(file_name):
-    dir_name = os.path.dirname(file_name)
-    return os.path.exists(os.path.join(dir_name, LOCK_FILE))
+    return os.path.exists(get_dummy_path(file_name))
 
 def download_file(url, file_name):
     # Maximum number of retries
@@ -101,6 +104,7 @@ def download_file(url, file_name):
                     if max_retries == 0:
                         # remove temp file
                         os.rmdir(file_name)
+                        remove_dummy(dest)
                         raise e
 
                     # Wait for the specified delay before retrying
@@ -119,7 +123,7 @@ def download_file(url, file_name):
             print(f"Error: File download failed. Retrying... {file_name_display}")
     if os.path.exists(file_name):
         os.remove(file_name)
-    remove_dummy(file_name)
+    remove_dummy(dest)
 
 #def download_file(url, file_name):
 #    # Download the file and save it to a local file
