@@ -20,11 +20,13 @@ LOCK_FILE = 'download_lock'
 def create_dummy(file_name):
     # get directory name from file_name and create LOCK_FILE
     dummy_path = get_dummy_path(file_name)
+    os.makedirs(os.path.dirname(dummy_path), exist_ok=True)
     with open(dummy_path, 'w') as f:
         f.write('dummy')
         
 def get_dummy_path(file_name):
     dir_name = os.path.dirname(file_name)
+    dir_name = os.path.abspath(dir_name)
     return os.path.join(dir_name,file_name + LOCK_FILE)
         
 def remove_dummy(file_name):
