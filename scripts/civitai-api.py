@@ -37,6 +37,20 @@ def remove_dummy(file_name):
 def check_dummy(file_name):
     return os.path.exists(get_dummy_path(file_name))
 
+def remove_empty_directories(path):
+    if not os.path.isdir(path):
+        return
+    files = os.listdir(path)
+    if len(files):
+        for f in files:
+            fullpath = os.path.join(path, f)
+            if os.path.isdir(fullpath):
+                remove_empty_directories(fullpath)
+    files = os.listdir(path)
+    if len(files) == 0:
+        print("Removing empty directory:", path)
+        os.rmdir(path)
+        
 def download_file(url, file_name):
     # Maximum number of retries
     max_retries = 5
@@ -126,6 +140,8 @@ def download_file(url, file_name):
     if os.path.exists(file_name):
         os.remove(file_name)
     remove_dummy(dest)
+    # clean up empty directories
+    remove_empty_directories(os.path.dirname(dest))
 
 #def download_file(url, file_name):
 #    # Download the file and save it to a local file
@@ -152,7 +168,13 @@ def download_file(url, file_name):
 #    # Close the progress bar
 #    progress.close()
 
+def replace_invalid_chars(file_name):
+    first_processed = file_name.replace(" ","_").replace("(","").replace(")","").replace("|","").replace(":","-")
+    # remove invalid chars for windows
+    return ''.join(c for c in first_processed if c not in r'<>:"/\|?*')
+
 def download_file_thread(url, file_name, content_type, use_new_folder, model_name):
+    model_name = replace_invalid_chars(model_name)
     if content_type == "Checkpoint":
         folder = "models/Stable-diffusion"
         new_folder = "models/Stable-diffusion/new"
@@ -172,8 +194,8 @@ def download_file_thread(url, file_name, content_type, use_new_folder, model_nam
         folder = "models/Lora"
         new_folder = "models/Lora/new"
     elif content_type == "LoCon":
-        folder = "models/Lora"
-        new_folder = "models/Lora/new"
+        folder = "models/LyCORIS"
+        new_folder = "models/LyCORIS/new"
     if content_type == "TextualInversion" or content_type == "VAE" or content_type == "AestheticGradient":
         if use_new_folder:
             model_folder = new_folder
@@ -186,14 +208,14 @@ def download_file_thread(url, file_name, content_type, use_new_folder, model_nam
                 os.makedirs(model_folder)
     else:            
         if use_new_folder:
-            model_folder = os.path.join(new_folder,model_name.replace(" ","_").replace("(","").replace(")","").replace("|","").replace(":","-"))
+            model_folder = os.path.join(new_folder,model_name)
             if not os.path.exists(new_folder):
                 os.makedirs(new_folder)
             if not os.path.exists(model_folder):
                 os.makedirs(model_folder)
             
         else:
-            model_folder = os.path.join(folder,model_name.replace(" ","_").replace("(","").replace(")","").replace("|","").replace(":","-"))
+            model_folder = os.path.join(folder,model_name)
             if not os.path.exists(model_folder):
                 os.makedirs(model_folder)
 
@@ -205,6 +227,7 @@ def download_file_thread(url, file_name, content_type, use_new_folder, model_nam
     thread.start()
 
 def save_text_file(file_name, content_type, use_new_folder, trained_words, model_name):
+    model_name = replace_invalid_chars(model_name)
     print("Save Text File Clicked")
     if content_type == "Checkpoint":
         folder = "models/Stable-diffusion"
@@ -239,14 +262,14 @@ def save_text_file(file_name, content_type, use_new_folder, trained_words, model
                 os.makedirs(model_folder)
     else:            
         if use_new_folder:
-            model_folder = os.path.join(new_folder,model_name.replace(" ","_").replace("(","").replace(")","").replace("|","").replace(":","-"))
+            model_folder = os.path.join(new_folder,model_name)
             if not os.path.exists(new_folder):
                 os.makedirs(new_folder)
             if not os.path.exists(model_folder):
                 os.makedirs(model_folder)
             
         else:
-            model_folder = os.path.join(folder,model_name.replace(" ","_").replace("(","").replace(")","").replace("|","").replace(":","-"))
+            model_folder = os.path.join(folder,model_name)
             if not os.path.exists(model_folder):
                 os.makedirs(model_folder)
    
@@ -414,7 +437,7 @@ def save_image_files(preview_image_html, model_filename, list_models, content_ty
     elif content_type == "LoCon":
         folder = "models/Lora"
     
-    model_folder = os.path.join(folder,list_models.replace(" ","_").replace("(","").replace(")","").replace("|","").replace(":","-"))
+    model_folder = os.path.join(folder,replace_invalid_chars(list_models))
 
     opener = urllib.request.build_opener()
     opener.addheaders = [('User-agent', 'Mozilla/5.0')]
