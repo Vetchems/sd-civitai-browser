@@ -15,7 +15,7 @@ import urllib.request
 import shutil
 
 
-def download_file(url, file_name):
+def download_file(url, file_name, proxies={}):
     # Maximum number of retries
     max_retries = 5
 
@@ -46,7 +46,7 @@ def download_file(url, file_name):
             while True:
                 try:
                     # Send a GET request to the URL and save the response to the local file
-                    response = requests.get(url, headers=headers, stream=True)
+                    response = requests.get(url, headers=headers, stream=True, proxies=proxies)
 
                     # Get the total size of the file
                     total_size = int(response.headers.get("Content-Length", 0))
@@ -86,9 +86,9 @@ def download_file(url, file_name):
         else:
             print(f"Error: File download failed. Retrying... {file_name_display}")
 
-#def download_file(url, file_name):
+#def download_file(url, file_name, proxies={}):
 #    # Download the file and save it to a local file
-#    response = requests.get(url, stream=True)
+#    response = requests.get(url, stream=True, proxies=proxies)
 #
 #    # Get the total size of the file
 #    total_size = int(response.headers.get("Content-Length", 0))
@@ -111,7 +111,7 @@ def download_file(url, file_name):
 #    # Close the progress bar
 #    progress.close()
 
-def download_file_thread(url, file_name, content_type, use_new_folder, model_name):
+def download_file_thread(url, file_name, content_type, use_new_folder, model_name, use_proxies, http_proxy, https_proxy):
     if content_type == "Checkpoint":
         folder = "models/Stable-diffusion"
         new_folder = "models/Stable-diffusion/new"
@@ -156,9 +156,11 @@ def download_file_thread(url, file_name, content_type, use_new_folder, model_nam
             if not os.path.exists(model_folder):
                 os.makedirs(model_folder)
 
+    proxies = {'http': http_proxy, 'https': https_proxy} if use_proxies else {}
+
     path_to_new_file = os.path.join(model_folder, file_name)     
 
-    thread = threading.Thread(target=download_file, args=(url, path_to_new_file))
+    thread = threading.Thread(target=download_file, args=(url, path_to_new_file, proxies))
 
         # Start the thread
     thread.start()
@@ -219,12 +221,12 @@ def save_text_file(file_name, content_type, use_new_folder, trained_words, model
 api_url = "https://civitai.com/api/v1/models?limit=50"
 json_data = None
 
-def api_to_data(content_type, sort_type, use_search_term, search_term=None):
+def api_to_data(content_type, sort_type, use_search_term, search_term=None, proxies={}):
     if use_search_term and search_term:
         search_term = search_term.replace(" ","%20")
-        return request_civit_api(f"{api_url}&types={content_type}&sort={sort_type}&query={search_term}")
+        return request_civit_api(f"{api_url}&types={content_type}&sort={sort_type}&query={search_term}", proxies=proxies)
     else:
-        return request_civit_api(f"{api_url}&types={content_type}&sort={sort_type}")
+        return request_civit_api(f"{api_url}&types={content_type}&sort={sort_type}", proxies=proxies)
 
 def api_next_page(next_page_url=None):
     global json_data
@@ -233,7 +235,7 @@ def api_next_page(next_page_url=None):
     if json_data['metadata']['nextPage'] is not None:
         next_page_url = json_data['metadata']['nextPage']
     if next_page_url is not None:
-        return request_civit_api(next_page_url)
+        return request_civit_api(next_page_url, proxies=proxies)
 
 def update_next_page(show_nsfw):
     global json_data
@@ -252,9 +254,10 @@ def update_next_page(show_nsfw):
     return gr.Dropdown.update(choices=[v for k, v in model_dict.items()], value=None), gr.Dropdown.update(choices=[], value=None)
 
 
-def update_model_list(content_type, sort_type, use_search_term, search_term, show_nsfw):
+def update_model_list(content_type, sort_type, use_search_term, search_term, show_nsfw, use_proxies, http_proxy, https_proxy):
     global json_data
-    json_data = api_to_data(content_type, sort_type, use_search_term, search_term)
+    proxies = {'http': http_proxy, 'https': https_proxy} if use_proxies else {}
+    json_data = api_to_data(content_type, sort_type, use_search_term, search_term, proxies)
     model_dict = {}
     if show_nsfw:
         for item in json_data['items']:
@@ -335,9 +338,9 @@ def update_model_info(model_name=None, model_version=None):
         return gr.HTML.update(value=None), gr.Textbox.update(value=None), gr.Dropdown.update(choices=[], value=None)
 
 
-def request_civit_api(api_url=None):
+def request_civit_api(api_url=None, proxies={}):
     # Make a GET request to the API
-    response = requests.get(api_url)
+    response = requests.get(api_url, proxies=proxies)
 
     # Check the status code of the response
     if response.status_code != 200:
@@ -410,6 +413,10 @@ def on_ui_tabs():
             use_search_term = gr.Checkbox(label="Search by term?", value=False)
             search_term = gr.Textbox(label="Search Term", interactive=True, lines=1)
         with gr.Row():
+            use_proxies = gr.Checkbox(label="User proxies?", value=False)
+            http_proxy = gr.Textbox(label="HTTP Proxy")
+            https_proxy = gr.Textbox(label="HTTPS Proxy")
+        with gr.Row():
             get_list_from_api = gr.Button(label="Get List", value="Get List")
             get_next_page = gr.Button(value="Next Page")
         with gr.Row():
@@ -457,6 +464,9 @@ def on_ui_tabs():
             content_type,
             save_model_in_new,
             list_models,
+            use_proxies,
+            http_proxy,
+            https_proxy,
             ],
             outputs=[]
         )
@@ -468,6 +478,9 @@ def on_ui_tabs():
             use_search_term,
             search_term,
             show_nsfw,
+            use_proxies,
+            http_proxy,
+            https_proxy,
             ],
             outputs=[
             list_models,
