@@ -174,6 +174,16 @@ def replace_invalid_chars(file_name):
     return ''.join(c for c in first_processed if c not in r'<>:"/\|?*')
 
 def download_file_thread(url, file_name, content_type, use_new_folder, model_name):
+    """
+    Download the file and save it to a local file
+    
+    @param url:string The URL of the file to download, example) https://example.com/file.txt (may or may not contain file name)
+    @param file_name:string The name of the file to save the download to example) file.txt
+    @param content_type:string The type of content being downloaded, example) Checkpoint, Hypernetwork, TextualInversion, AestheticGradient, VAE, LORA, LoCon
+    @param use_new_folder:boolean Whether to save the file to a new folder or not (default: False)
+    @param model_name:string The name of the model being downloaded, used for subfolder (default: None or use file_name)
+
+    """
     model_name = replace_invalid_chars(model_name)
     if content_type == "Checkpoint":
         folder = "models/Stable-diffusion"
@@ -190,12 +200,9 @@ def download_file_thread(url, file_name, content_type, use_new_folder, model_nam
     elif content_type == "VAE":
         folder = "models/VAE"
         new_folder = "models/VAE/new"
-    elif content_type == "LORA":
+    elif content_type == "LORA" or content_type == "LoCon":
         folder = "models/Lora"
         new_folder = "models/Lora/new"
-    elif content_type == "LoCon":
-        folder = "models/LyCORIS"
-        new_folder = "models/LyCORIS/new"
     if content_type == "TextualInversion" or content_type == "VAE" or content_type == "AestheticGradient":
         if use_new_folder:
             model_folder = new_folder
@@ -225,6 +232,7 @@ def download_file_thread(url, file_name, content_type, use_new_folder, model_nam
 
         # Start the thread
     thread.start()
+    return thread # return the thread so we can wait for it to finish if we want
 
 def save_text_file(file_name, content_type, use_new_folder, trained_words, model_name):
     model_name = replace_invalid_chars(model_name)
