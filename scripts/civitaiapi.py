@@ -173,7 +173,7 @@ def replace_invalid_chars(file_name):
     # remove invalid chars for windows
     return ''.join(c for c in first_processed if c not in r'<>:"/\|?*')
 
-def wrapped_download_file_thread(url, file_name, content_type, use_new_folder, model_name):
+def wrapped_download_file_thread(url, file_name:str, content_type, use_new_folder, model_name):
     """
     Wrapped function that process args.
     model name can be empty, in which case it is extracted from file_name
@@ -184,6 +184,7 @@ def wrapped_download_file_thread(url, file_name, content_type, use_new_folder, m
     # check if filename has extensions, if not, add .safetensors
     if not file_name:
         return f"No file name provided: {file_name}"
+    file_name = replace_invalid_chars(file_name)
     if "." not in file_name:
         file_name = file_name + ".safetensors"
     if content_type not in ["Checkpoint", "Hypernetwork", "TextualInversion", "AestheticGradient", "VAE", "LORA", "LoCon"]:
@@ -194,6 +195,8 @@ def wrapped_download_file_thread(url, file_name, content_type, use_new_folder, m
             model_name = file_name[:file_name.rindex(".")]
         else:
             model_name = file_name
+    # replace invalid chars in model name
+    model_name = replace_invalid_chars(model_name).replace(".", "_")
     download_file_thread(url, file_name, content_type, use_new_folder, model_name)
     return f"Downloading {model_name}..."
 
