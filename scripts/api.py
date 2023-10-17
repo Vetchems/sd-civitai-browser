@@ -2,12 +2,14 @@
 Registers API routes for the webui
 """
 import gradio as gr
-from fastapi import FastAPI, Form
+import threading
 from pydantic import BaseModel
 from typing import List, Optional, Tuple, Union
-import threading
 from scripts.civitaiapi import download_file_thread
-
+from secrets import compare_digest
+from fastapi import HTTPException
+from fastapi import Depends, FastAPI, Form
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 ### ====================classes========================
 class DownloadRequestResponse(BaseModel):
@@ -53,7 +55,34 @@ def wrapped_download_file_thread(url:str, model_name:str, file_name:str, content
     return DownloadRequestResponse(message=f"Downloading {model_name}...", success=True)
 
 def register_download_api(app:FastAPI):
-    @app.post("/download/model", response_model=DownloadRequestResponse)
+    # single function, everything here...
+    api_credentials = {}
+    dependencies = None
+    from modules import shared
+    
+    def auth(credentials:HTTPBasicCredentials = Depends(HTTPBasic())):
+        if credentials.username in api_credentials and compare_digest(credentials.password, api_credentials[credentials.username]):
+            return True
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    
+    if shared.cmd_opts.api_auth:
+        api_credentials = {}
+        for cred in shared.cmd_opts.api_auth.split(","):
+            if ":" not in cred or cred.count(":") > 1:
+                # skip invalid credentials
+                continue
+            user, password = cred.split(":")
+            if user in api_credentials:
+                # skip duplicate users
+                continue
+            api_credentials[user] = password
+        dependencies = [Depends(auth)]
+    
+    @app.post("/download/model", response_model=DownloadRequestResponse ,dependencies=dependencies)
     def download_model(url:str=Form(""), model_name:str=Form(""), file_name:str=Form(""), content_type:str=Form(""), use_new_folder:bool=Form(False), wait:bool=Form(False)):
         """
         Download a model from a URL
