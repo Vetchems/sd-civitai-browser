@@ -499,8 +499,8 @@ def save_image_files(preview_image_html, model_filename, list_models, content_ty
 
 def on_ui_tabs():
     with gr.Blocks() as civitai_interface:
-        with gr.Row(elem_id="script_civitai_interface"):
-            with gr.Tabs(elem_id="civitai_tabs"):
+        with gr.Row():
+            with gr.Tabs():
                 with gr.TabItem("CivitAi Browser"):
                     with gr.Row():
                         with gr.Column(scale=2):
