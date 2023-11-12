@@ -4,8 +4,8 @@ Registers API routes for the webui
 import gradio as gr
 import threading
 from pydantic import BaseModel
-from typing import List, Optional, Tuple, Union
-from scripts.civitaiapi import download_file_thread
+from typing import Optional, Tuple, Union
+from scripts.functions import download_file_thread
 from secrets import compare_digest
 from fastapi import HTTPException
 from fastapi import Depends, FastAPI, Form
