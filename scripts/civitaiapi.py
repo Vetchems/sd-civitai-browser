@@ -1,6 +1,5 @@
 import requests
 import json
-import modules.scripts as scripts
 import gradio as gr
 from modules import script_callbacks
 import time
@@ -14,6 +13,10 @@ from requests.exceptions import ConnectionError
 import urllib.request
 import shutil
 import tempfile
+
+# Set the URL for the API endpoint
+api_url = "https://civitai.com/api/v1/models?limit=50"
+json_data = None
 
 def create_dummy(file_name):
     dummy_path = get_dummy_path(file_name)
@@ -143,31 +146,6 @@ def download_file(url, file_name):
         # clean up empty directories
         remove_empty_directories(os.path.dirname(dest))
 
-#def download_file(url, file_name):
-#    # Download the file and save it to a local file
-#    response = requests.get(url, stream=True)
-#
-#    # Get the total size of the file
-#    total_size = int(response.headers.get("Content-Length", 0))
-#
-#    # Split filename from included path
-#    tokens = re.split(re.escape('\\'), file_name)
-#    file_name_display = tokens[-1]
-#
-#    # Initialize the progress bar
-#    progress = tqdm(total=total_size, unit="B", unit_scale=True, desc=f"Downloading {file_name_display}")
-#
-#    # Open a local file to save the download
-#    with open(file_name, "wb") as f:
-#        # Iterate over the response chunks and update the progress bar
-#        for chunk in response.iter_content(chunk_size=1024):
-#            if chunk:  # filter out keep-alive new chunks
-#                f.write(chunk)
-#                progress.update(len(chunk))
-#
-#    # Close the progress bar
-#    progress.close()
-
 def replace_invalid_chars(file_name):
     first_processed = file_name.replace(" ","_").replace("(","").replace(")","").replace("|","").replace(":","-")
     # remove invalid chars for windows
@@ -199,7 +177,6 @@ def wrapped_download_file_thread(url, file_name:str, content_type, use_new_folde
     model_name = replace_invalid_chars(model_name).replace(".", "_")
     download_file_thread(url, file_name, content_type, use_new_folder, model_name)
     return f"Downloading {model_name}..."
-
 
 def download_file_thread(url, file_name, content_type, use_new_folder, model_name):
     """
@@ -314,11 +291,6 @@ def save_text_file(file_name, content_type, use_new_folder, trained_words, model
         with open(path_to_new_file, 'w') as f:
             f.write(trained_words)
 
-
-# Set the URL for the API endpoint
-api_url = "https://civitai.com/api/v1/models?limit=50"
-json_data = None
-
 def api_to_data(content_type, sort_type, use_search_term, search_term=None):
     if use_search_term and search_term:
         search_term = search_term.replace(" ","%20")
@@ -350,7 +322,6 @@ def update_next_page(show_nsfw):
             if not temp_nsfw:
                 model_dict[item['name']] = item['name']
     return gr.Dropdown.update(choices=[v for k, v in model_dict.items()], value=None), gr.Dropdown.update(choices=[], value=None)
-
 
 def update_model_list(content_type, sort_type, use_search_term, search_term, show_nsfw):
     global json_data
@@ -398,8 +369,6 @@ def update_dl_url(model_name=None, model_version=None, model_filename=None):
         return gr.Textbox.update(value=None)
 
 def update_model_info(model_name=None, model_version=None):
-
-
     if model_name and model_version:
         model_version = model_version.replace(f' - {model_name}','').strip()
         global json_data
@@ -433,7 +402,6 @@ def update_model_info(model_name=None, model_version=None):
         return gr.HTML.update(value=output_html), gr.Textbox.update(value=output_training), gr.Dropdown.update(choices=[k for k, v in dl_dict.items()], value=next(iter(dl_dict.keys())))
     else:
         return gr.HTML.update(value=None), gr.Textbox.update(value=None), gr.Dropdown.update(choices=[], value=None)
-
 
 def request_civit_api(api_url=None):
     # Make a GET request to the API
@@ -497,167 +465,166 @@ def save_image_files(preview_image_html, model_filename, list_models, content_ty
         except urllib.error.URLError as e:
             print(f'Error: {e.reason}')
 
-def on_ui_tabs():
-    with gr.Blocks() as civitai_interface:
-        with gr.Row():
-            with gr.Tabs():
-                with gr.TabItem("CivitAi Browser"):
-                    with gr.Row():
-                        with gr.Column(scale=2):
-                            content_type = gr.Radio(label='Content type:', choices=["Checkpoint","Hypernetwork","TextualInversion","AestheticGradient", "VAE", "LORA", "LoCon"], value="Checkpoint", type="value")
-                        with gr.Column(scale=2):
-                            sort_type = gr.Radio(label='Sort List by:', choices=["Newest","Most Downloaded","Highest Rated","Most Liked"], value="Newest", type="value")
-                        with gr.Column(scale=1):
-                            show_nsfw = gr.Checkbox(label="Show NSFW", value=True)
-                    with gr.Row():
-                        use_search_term = gr.Checkbox(label="Search by term?", value=False)
-                        search_term = gr.Textbox(label="Search Term", interactive=True, lines=1)
-                    with gr.Row():
-                        get_list_from_api = gr.Button(label="Get List", value="Get List")
-                        get_next_page = gr.Button(value="Next Page")
-                    with gr.Row():
-                        list_models = gr.Dropdown(label="Model", choices=[], interactive=True, elem_id="quicksettings", value=None)
-                        list_versions = gr.Dropdown(label="Version", choices=[], interactive=True, elem_id="quicksettings", value=None)
-                    with gr.Row():
-                        txt_list = ""
-                        dummy = gr.Textbox(label='Trained Tags (if any)', value=f'{txt_list}', interactive=True, lines=1)
-                        model_filename = gr.Dropdown(label="Model Filename", choices=[], interactive=True, value=None)
-                        dl_url = gr.Textbox(label="Download Url", interactive=False, value=None)
-                    with gr.Row():
-                        update_info = gr.Button(value='1st - Get Model Info')
-                        save_text = gr.Button(value="2nd - Save Text")
-                        save_images = gr.Button(value="3rd - Save Images")
-                        download_model = gr.Button(value="4th - Download Model")
-                        save_model_in_new = gr.Checkbox(label="Save Model to new folder", value=False)
-                    with gr.Row():
-                        preview_image_html = gr.HTML()
-                    save_text.click(
-                        fn=save_text_file,
-                        inputs=[
-                        model_filename,
-                        content_type,
-                        save_model_in_new,
-                        dummy,
-                        list_models,
-                        ],
-                        outputs=[]
-                    )
-                    save_images.click(
-                        fn=save_image_files,
-                        inputs=[
-                        preview_image_html,
-                        model_filename,
-                        list_models,
-                        content_type
-                        ],
-                        outputs=[]
-                    )
-                    download_model.click(
-                        fn=download_file_thread,
-                        inputs=[
-                        dl_url,
-                        model_filename,
-                        content_type,
-                        save_model_in_new,
-                        list_models,
-                        ],
-                        outputs=[]
-                    )
-                    get_list_from_api.click(
-                        fn=update_model_list,
-                        inputs=[
-                        content_type,
-                        sort_type,
-                        use_search_term,
-                        search_term,
-                        show_nsfw,
-                        ],
-                        outputs=[
-                        list_models,
-                        list_versions,
-                        ]
-                    )
-                    update_info.click(
-                        fn=update_everything,
-                        #fn=update_model_info,
-                        inputs=[
-                        list_models,
-                        list_versions,
-                        model_filename,
-                        dl_url
-                        ],
-                        outputs=[
-                        preview_image_html,
-                        dummy,
-                        model_filename,
-                        list_versions,
-                        list_models,
-                        dl_url
-                        ]
-                    )
-                    list_models.change(
-                        fn=update_model_versions,
-                        inputs=[
-                        list_models,
-                        ],
-                        outputs=[
-                        list_versions,
-                        ]
-                    )
+def on_ui_tabs_called():
+    with gr.Blocks(analytics_enabled=False) as civitai_interface:
+        with gr.Tabs(elem_id="civitai-tabs"):
+            with gr.TabItem("CivitAi-Browser"):
+                with gr.Row():
+                    with gr.Column(scale=2):
+                        content_type = gr.Radio(label='Content type:', choices=["Checkpoint","Hypernetwork","TextualInversion","AestheticGradient", "VAE", "LORA", "LoCon"], value="Checkpoint", type="value")
+                    with gr.Column(scale=2):
+                        sort_type = gr.Radio(label='Sort List by:', choices=["Newest","Most Downloaded","Highest Rated","Most Liked"], value="Newest", type="value")
+                    with gr.Column(scale=1):
+                        show_nsfw = gr.Checkbox(label="Show NSFW", value=True)
+                with gr.Row():
+                    use_search_term = gr.Checkbox(label="Search by term?", value=True)
+                    search_term = gr.Textbox(label="Search Term", interactive=True, lines=1)
+                with gr.Row():
+                    get_list_from_api = gr.Button(label="Get List", value="Get List")
+                    get_next_page = gr.Button(value="Next Page")
+                with gr.Row():
+                    list_models = gr.Dropdown(label="Model", choices=[], interactive=True, elem_id="quicksettings", value=None)
+                    list_versions = gr.Dropdown(label="Version", choices=[], interactive=True, elem_id="quicksettings", value=None)
+                with gr.Row():
+                    txt_list = ""
+                    dummy = gr.Textbox(label='Trained Tags (if any)', value=f'{txt_list}', interactive=True, lines=1)
+                    model_filename = gr.Dropdown(label="Model Filename", choices=[], interactive=True, value=None)
+                    dl_url = gr.Textbox(label="Download Url", interactive=False, value=None)
+                with gr.Row():
+                    update_info = gr.Button(value='1st - Get Model Info')
+                    save_text = gr.Button(value="2nd - Save Text")
+                    save_images = gr.Button(value="3rd - Save Images")
+                    download_model = gr.Button(value="4th - Download Model")
+                    save_model_in_new = gr.Checkbox(label="Save Model to new folder", value=False)
+                with gr.Row(elem_id="html_row"):
+                    preview_image_html = gr.HTML()
+                save_text.click(
+                    fn=save_text_file,
+                    inputs=[
+                    model_filename,
+                    content_type,
+                    save_model_in_new,
+                    dummy,
+                    list_models,
+                    ],
+                    outputs=[]
+                )
+                save_images.click(
+                    fn=save_image_files,
+                    inputs=[
+                    preview_image_html,
+                    model_filename,
+                    list_models,
+                    content_type
+                    ],
+                    outputs=[]
+                )
+                download_model.click(
+                    fn=download_file_thread,
+                    inputs=[
+                    dl_url,
+                    model_filename,
+                    content_type,
+                    save_model_in_new,
+                    list_models,
+                    ],
+                    outputs=[]
+                )
+                get_list_from_api.click(
+                    fn=update_model_list,
+                    inputs=[
+                    content_type,
+                    sort_type,
+                    use_search_term,
+                    search_term,
+                    show_nsfw,
+                    ],
+                    outputs=[
+                    list_models,
+                    list_versions,
+                    ]
+                )
+                update_info.click(
+                    fn=update_everything,
+                    #fn=update_model_info,
+                    inputs=[
+                    list_models,
+                    list_versions,
+                    model_filename,
+                    dl_url
+                    ],
+                    outputs=[
+                    preview_image_html,
+                    dummy,
+                    model_filename,
+                    list_versions,
+                    list_models,
+                    dl_url
+                    ]
+                )
+                list_models.change(
+                    fn=update_model_versions,
+                    inputs=[
+                    list_models,
+                    ],
+                    outputs=[
+                    list_versions,
+                    ]
+                )
 
-                    list_versions.change(
-                        fn=update_model_info,
+                list_versions.change(
+                    fn=update_model_info,
+                    inputs=[
+                    list_models,
+                    list_versions,
+                    ],
+                    outputs=[
+                    preview_image_html,
+                    dummy,
+                    model_filename,
+                    ]
+                )
+                model_filename.change(
+                    fn=update_dl_url,
+                    inputs=[list_models, list_versions, model_filename,],
+                    outputs=[dl_url,]
+                )
+                get_next_page.click(
+                    fn=update_next_page,
+                    inputs=[
+                    show_nsfw,
+                    ],
+                    outputs=[
+                    list_models,
+                    list_versions,
+                    ]
+                )
+            with gr.TabItem("Manual-CivitAi-Download"):
+                with gr.Row():
+                    # Manual Tab, you can input your own URL and file name.
+                    input_url_textbox = gr.Textbox(label="URL", interactive=True, lines=1)
+                    input_filename_textbox = gr.Textbox(label="File Name", interactive=True, lines=1)
+                    content_type_dropdown = gr.Dropdown(label="Content Type",
+                                                        choices=["Checkpoint","Hypernetwork","TextualInversion","AestheticGradient", "VAE", "LORA", "LoCon"],
+                                                        interactive=True, value="Checkpoint")
+                    use_new_folder_checkbox = gr.Checkbox(label="Save to new folder", value=False)
+                    input_foldername_textbox = gr.Textbox(label="Folder Name(Optional)", interactive=True, lines=1) # can be empty
+                    download_button = gr.Button(value="Download")
+
+                    debug_result_textbox = gr.Textbox(label="Debug Result", interactive=False, lines=1)
+                    download_button.click(
+                        fn=wrapped_download_file_thread,
                         inputs=[
-                        list_models,
-                        list_versions,
+                            input_url_textbox,
+                            input_filename_textbox,
+                            content_type_dropdown,
+                            use_new_folder_checkbox,
+                            input_foldername_textbox,
                         ],
                         outputs=[
-                        preview_image_html,
-                        dummy,
-                        model_filename,
+                            debug_result_textbox,
                         ]
                     )
-                    model_filename.change(
-                        fn=update_dl_url,
-                        inputs=[list_models, list_versions, model_filename,],
-                        outputs=[dl_url,]
-                    )
-                    get_next_page.click(
-                        fn=update_next_page,
-                        inputs=[
-                        show_nsfw,
-                        ],
-                        outputs=[
-                        list_models,
-                        list_versions,
-                        ]
-                    )
-                with gr.TabItem("Manual") as manual_tab:
-                    with gr.Row():
-                        # Manual Tab, you can input your own URL and file name.
-                        input_url_textbox = gr.Textbox(label="URL", interactive=True, lines=1)
-                        input_filename_textbox = gr.Textbox(label="File Name", interactive=True, lines=1)
-                        content_type_dropdown = gr.Dropdown(label="Content Type",
-                                                            choices=["Checkpoint","Hypernetwork","TextualInversion","AestheticGradient", "VAE", "LORA", "LoCon"],
-                                                            interactive=True, value="Checkpoint")
-                        use_new_folder_checkbox = gr.Checkbox(label="Save to new folder", value=False)
-                        input_foldername_textbox = gr.Textbox(label="Folder Name(Optional)", interactive=True, lines=1) # can be empty
-                        download_button = gr.Button(label="Download", value="Download")
+    return (civitai_interface, "CivitAi", "civitai-interface"),
 
-                        debug_result_textbox = gr.Textbox(label="Debug Result", interactive=False, lines=1)
-                        download_button.click(
-                            fn=wrapped_download_file_thread,
-                            inputs=[
-                                input_url_textbox,
-                                input_filename_textbox,
-                                content_type_dropdown,
-                                use_new_folder_checkbox,
-                                input_foldername_textbox,
-                            ],
-                            outputs=[
-                                debug_result_textbox,
-                            ]
-                        )
-    return (civitai_interface, "CivitAi", "script_civitai_interface"),
-
-script_callbacks.on_ui_tabs(on_ui_tabs)
+script_callbacks.on_ui_tabs(on_ui_tabs_called)
