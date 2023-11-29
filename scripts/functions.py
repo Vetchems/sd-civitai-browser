@@ -450,6 +450,8 @@ def save_image_files(preview_image_html, model_filename, list_models, content_ty
         img_url = img_url.replace("https", "http")
 
         print(img_url, filename)
+        # Permanent Redirect fix
+        save_success = False
         try:
             with urllib.request.urlopen(img_url) as url:
                 with open(os.path.join(model_folder, filename), 'wb') as f:
@@ -459,6 +461,17 @@ def save_image_files(preview_image_html, model_filename, list_models, content_ty
                 #for the first one, let's make an image name that works with preview
                 if i == 0:
                     shutil.copy(os.path.join(model_folder, filename), os.path.join(model_folder, name + ".png") )
-                    
+                    save_success = True
         except urllib.error.URLError as e:
             print(f'Error: {e.reason}')
+        if not save_success:
+            # use requests.get to download the image
+            response = requests.get(img_url)
+            if not response.ok:
+                print(f'Error: {response.reason}')
+                continue
+            image_ext = response.headers['Content-Type'].split('/')[-1]
+            filename = f'{name}_{i}.{image_ext}'
+            with open(os.path.join(model_folder, filename), 'wb') as f:
+                f.write(response.content)
+                print("\t\t\tDownloaded")
