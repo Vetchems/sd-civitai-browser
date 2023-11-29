@@ -475,3 +475,6 @@ def save_image_files(preview_image_html, model_filename, list_models, content_ty
             with open(os.path.join(model_folder, filename), 'wb') as f:
                 f.write(response.content)
                 print("\t\t\tDownloaded")
+            #for the first one, let's make an image name that works with preview
+            if i == 0:
+                shutil.copy(os.path.join(model_folder, filename), os.path.join(model_folder, name + f".{image_ext}") )
